@@ -7,7 +7,8 @@
     "skipLibCheck": true,
 
     /* Bundler mode */
-    "module": "nodenext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
@@ -19,5 +20,10 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts"]
+  "include": [
+    "electron.vite.config.ts",
+    "src/main/**/*",
+    "src/preload/**/*",
+    "src/shared/**/*"
+  ]
 }

@@ -10,7 +10,12 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+out
 *.local
+
+# MediaPipe model weights — large binaries, downloaded per
+# src/renderer/public/models/README.md (kept out of git; use LFS if you must track them)
+src/renderer/public/models/*.task
 
 # Editor directories and files
 .vscode/*
