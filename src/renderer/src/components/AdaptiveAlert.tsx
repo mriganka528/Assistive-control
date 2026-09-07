@@ -12,6 +12,7 @@ const ROLE_LABELS: Record<string, string> = {
   cursor: "Cursor",
   leftClick: "Left click",
   rightClick: "Right click",
+  middleClick: "Middle click",
   scroll: "Scroll",
   confirm: "Confirm",
 };

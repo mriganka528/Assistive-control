@@ -14,6 +14,7 @@ export const IPC = {
   INPUT_MOVE_BY: "input:moveBy",
   INPUT_LEFT_CLICK: "input:leftClick",
   INPUT_RIGHT_CLICK: "input:rightClick",
+  INPUT_MIDDLE_CLICK: "input:middleClick",
   INPUT_DOUBLE_CLICK: "input:doubleClick",
   INPUT_SCROLL: "input:scroll",
   INPUT_KEY_PRESS: "input:keyPress",
@@ -103,6 +104,7 @@ export type ElectronAPI = {
     moveCursorBy(dx: number, dy: number): Promise<boolean>;
     leftClick(): Promise<boolean>;
     rightClick(): Promise<boolean>;
+    middleClick(): Promise<boolean>;
     doubleClick(): Promise<boolean>;
     scroll(dx: number, dy: number): Promise<boolean>;
     keyPress(key: string): Promise<boolean>;

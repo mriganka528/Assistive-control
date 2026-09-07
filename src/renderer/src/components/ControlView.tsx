@@ -24,8 +24,6 @@ import { useSafety } from "../hooks/useSafety";
 import ControlStatusPanel from "./ControlStatus";
 import AdaptiveAlert from "./AdaptiveAlert";
 import InputModeBanner from "./InputModeBanner";
-import AppLauncher from "./AppLauncher";
-import VirtualKeyboard from "./VirtualKeyboard";
 import type {
   CalibrationProfile,
   ControlStatus as Status,
@@ -39,6 +37,7 @@ const ROLE_LABELS: Record<string, string> = {
   cursor: "Cursor",
   leftClick: "Left click",
   rightClick: "Right click",
+  middleClick: "Middle click",
   scroll: "Scroll",
   confirm: "Confirm",
 };
@@ -66,7 +65,13 @@ export default function ControlView({
   onExit: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const animationRef = useRef<number | null>(null);
+  // Timer handle for the detection loop. We drive it with setTimeout rather
+  // than requestAnimationFrame: rAF is suspended by the OS/compositor whenever
+  // the window is minimized or hidden, which froze the real cursor the moment
+  // the user switched to another app. A timer keeps firing in the background
+  // (with backgroundThrottling disabled in the main process), so control keeps
+  // working while the app is minimized — the whole point of the tool.
+  const loopTimer = useRef<number | null>(null);
   const runtimeRef = useRef<ControlRuntime | null>(null);
   const lastStatusPush = useRef(0);
   const proposalShown = useRef(false);
@@ -86,9 +91,9 @@ export default function ControlView({
   const [proposal, setProposal] = useState<SwitchProposal | null>(null);
   const [autoNote, setAutoNote] = useState<string | null>(null);
   const [rechecking, setRechecking] = useState(false);
-  const [showKeyboard, setShowKeyboard] = useState(false);
 
   const safety = useSafety();
+  const autoArmed = useRef(false);
 
   // Create the runtime once, and keep it in sync with the profile prop.
   if (runtimeRef.current === null) {
@@ -106,6 +111,22 @@ export default function ControlView({
   useEffect(() => {
     runtimeRef.current?.setSafety(safety.state);
   }, [safety.state]);
+
+  // Auto-arm as soon as the camera is live (§ assistive intent): the user
+  // shouldn't have to click "Arm" — control is the whole point of the screen.
+  // We arm only once on entry and never fight a later emergency stop / pause.
+  useEffect(() => {
+    if (
+      cameraReady &&
+      safety.available &&
+      !autoArmed.current &&
+      !safety.state.armed &&
+      !safety.state.stopped
+    ) {
+      autoArmed.current = true;
+      safety.arm();
+    }
+  }, [cameraReady, safety.available, safety.state.armed, safety.state.stopped, safety]);
 
   // Camera + detection loop.
   useEffect(() => {
@@ -129,9 +150,19 @@ export default function ControlView({
         setHandActive(hand !== null);
         setHandStatus(getHandTrackingStatus());
 
+        // ~60fps target. setTimeout keeps firing while minimized (unlike rAF),
+        // and the runtime is frame-time aware so an occasionally longer gap
+        // doesn't make the cursor lurch.
+        const FRAME_MS = 16;
+        const scheduleNext = () => {
+          if (stopped) return;
+          loopTimer.current = window.setTimeout(detect, FRAME_MS);
+        };
+
         const detect = () => {
-          if (stopped || !videoRef.current || videoRef.current.readyState < 2) {
-            animationRef.current = requestAnimationFrame(detect);
+          if (stopped) return;
+          if (!videoRef.current || videoRef.current.readyState < 2) {
+            scheduleNext();
             return;
           }
           const timestamp = performance.now();
@@ -226,7 +257,7 @@ export default function ControlView({
             }
           }
 
-          animationRef.current = requestAnimationFrame(detect);
+          scheduleNext();
         };
 
         detect();
@@ -239,7 +270,7 @@ export default function ControlView({
 
     return () => {
       stopped = true;
-      if (animationRef.current !== null) cancelAnimationFrame(animationRef.current);
+      if (loopTimer.current !== null) window.clearTimeout(loopTimer.current);
       if (autoNoteTimer.current !== null) window.clearTimeout(autoNoteTimer.current);
       if (stream) stream.getTracks().forEach((t) => t.stop());
       // Leaving control always disarms, so no input continues in the background.
@@ -284,8 +315,8 @@ export default function ControlView({
         }}
       >
         <button onClick={onExit}>← Home</button>
-        <h1 style={{ margin: 0, fontSize: "22px" }}>Live Control</h1>
-        <span style={{ fontSize: "13px", color: "#64748b" }}>
+        <h1 style={{ margin: 0, fontSize: "1.375rem" }}>Live Control</h1>
+        <span style={{ fontSize: "13px", color: "var(--text-faint)" }}>
           {handActive ? "Face + hand tracking" : "Face tracking"}
         </span>
       </div>
@@ -353,9 +384,10 @@ export default function ControlView({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(360px, 1.4fr) minmax(300px, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
           gap: "20px",
           marginTop: "16px",
+          alignItems: "start",
         }}
       >
         <div>
@@ -371,11 +403,12 @@ export default function ControlView({
               transform: "scaleX(-1)",
             }}
           />
-          <div style={{ marginTop: "8px", fontSize: "13px", color: "#64748b" }}>
+          <div style={{ marginTop: "8px", fontSize: "13px", color: "var(--text-faint)" }}>
             Camera: {cameraReady ? "ready" : "starting…"}
           </div>
 
-          {/* Mandatory safety controls */}
+          {/* Minimal controls — the app arms itself; the user only ever needs
+              a quick pause and the emergency stop. Everything else is automatic. */}
           <div
             style={{
               marginTop: "16px",
@@ -384,33 +417,17 @@ export default function ControlView({
               flexWrap: "wrap",
             }}
           >
-            {!safety.state.armed && !safety.state.stopped && (
-              <button
-                onClick={safety.arm}
-                style={{ ...btn, background: "#16a34a", color: "#fff" }}
-              >
-                Arm control
-              </button>
-            )}
             {safety.state.armed && !safety.state.paused && (
               <button onClick={safety.pause} style={btn}>
                 Pause
               </button>
             )}
-            {safety.state.armed && safety.state.paused && (
+            {(safety.state.paused || safety.state.stopped || !safety.state.armed) && (
               <button
-                onClick={safety.resume}
-                style={{ ...btn, background: "#2563eb", color: "#fff" }}
+                onClick={safety.state.stopped ? safety.arm : safety.resume}
+                style={{ ...btn, background: "#16a34a", color: "#fff" }}
               >
-                Resume
-              </button>
-            )}
-            {safety.state.armed && (
-              <button
-                onClick={safety.disarm}
-                style={btn}
-              >
-                Disarm
+                {safety.state.stopped ? "Re-arm" : "Resume"}
               </button>
             )}
             <button
@@ -419,28 +436,14 @@ export default function ControlView({
             >
               Emergency stop
             </button>
-            {safety.state.stopped && (
-              <button
-                onClick={safety.arm}
-                style={{ ...btn, background: "#16a34a", color: "#fff" }}
-              >
-                Re-arm
-              </button>
-            )}
             <button onClick={startRecheck} disabled={rechecking} style={btn}>
               {rechecking ? "Rechecking…" : "Recheck (adapt to now)"}
             </button>
-            <button
-              onClick={() => setShowKeyboard((v) => !v)}
-              style={btn}
-              aria-pressed={showKeyboard}
-            >
-              {showKeyboard ? "Hide keyboard" : "Keyboard"}
-            </button>
           </div>
-          <p style={{ fontSize: "12px", color: "#94a3b8", marginTop: "8px" }}>
-            Global emergency stop: Ctrl+Shift+X (works even when this window is
-            not focused).
+          <p style={{ fontSize: "12px", color: "var(--text-faint)", marginTop: "8px" }}>
+            Control arms automatically. Real mouse and keyboard across your whole
+            computer. Emergency stop: Ctrl+Shift+X (works even when this window
+            isn't focused).
           </p>
         </div>
 
@@ -456,15 +459,16 @@ export default function ControlView({
 
           <div
             style={{
-              border: "1px solid #e2e8f0",
-              borderRadius: "12px",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius)",
               padding: "16px",
-              background: "#fff",
+              background: "var(--surface)",
+              boxShadow: "var(--shadow-sm)",
             }}
           >
             <h3 style={{ marginTop: 0, fontSize: "15px" }}>Your controls</h3>
             {mappingLines.length === 0 ? (
-              <p style={{ fontSize: "13px", color: "#64748b" }}>
+              <p style={{ fontSize: "13px", color: "var(--text-faint)" }}>
                 No controls mapped. Try recalibrating.
               </p>
             ) : (
@@ -475,25 +479,17 @@ export default function ControlView({
               </ul>
             )}
           </div>
-
-          <AppLauncher />
         </div>
       </div>
-
-      {showKeyboard && (
-        <div style={{ marginTop: "16px" }}>
-          <VirtualKeyboard onClose={() => setShowKeyboard(false)} />
-        </div>
-      )}
     </div>
   );
 }
 
 const btn: React.CSSProperties = {
   padding: "10px 16px",
-  borderRadius: "8px",
-  border: "1px solid #cbd5e1",
-  background: "#fff",
-  color: "#0f172a",
+  borderRadius: "var(--radius-sm)",
+  border: "1px solid var(--border)",
+  background: "var(--surface)",
+  color: "var(--text)",
   cursor: "pointer",
 };

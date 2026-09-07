@@ -113,6 +113,9 @@ export default function SettingsView({
           step={0.1}
           onChange={(v) => onChangeSettings({ cursorSensitivity: v })}
         />
+        <p style={{ fontSize: "13px", color: "#64748b", marginTop: "-6px" }}>
+          Higher sensitivity moves faster; lower gives finer, calmer control.
+        </p>
         <Slider
           label="Scroll speed"
           value={s.scrollSpeed}

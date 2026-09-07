@@ -22,24 +22,30 @@ function Card({
   return (
     <div
       style={{
-        border: "1px solid #e2e8f0",
-        borderRadius: "12px",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius)",
         padding: "20px",
-        background: "#fff",
+        background: "var(--surface)",
+        boxShadow: "var(--shadow-sm)",
+        display: "flex",
+        flexDirection: "column",
         opacity: disabled ? 0.55 : 1,
       }}
     >
-      <h2 style={{ fontSize: "18px", marginTop: 0 }}>{title}</h2>
-      <p style={{ fontSize: "14px", color: "#475569" }}>{body}</p>
+      <h2 style={{ fontSize: "1.125rem", marginTop: 0 }}>{title}</h2>
+      <p style={{ fontSize: "0.9rem", color: "var(--text-soft)", flex: 1 }}>
+        {body}
+      </p>
       <button
         onClick={onClick}
         disabled={disabled}
         style={{
+          alignSelf: "flex-start",
           padding: "10px 18px",
-          borderRadius: "8px",
-          border: primary ? "none" : "1px solid #cbd5e1",
-          background: primary ? "#2563eb" : "#fff",
-          color: primary ? "#fff" : "#0f172a",
+          borderRadius: "var(--radius-sm)",
+          border: primary ? "none" : "1px solid var(--border)",
+          background: primary ? "var(--primary)" : "var(--surface)",
+          color: primary ? "#fff" : "var(--text)",
           cursor: disabled ? "not-allowed" : "pointer",
         }}
       >
@@ -77,7 +83,7 @@ export default function Home({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
           gap: "16px",
           marginTop: "24px",
         }}

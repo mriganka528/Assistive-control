@@ -4,6 +4,7 @@ import {
   session,
   ipcMain,
   globalShortcut,
+  powerSaveBlocker,
 } from "electron";
 import { join } from "node:path";
 import { promises as fs } from "node:fs";
@@ -17,6 +18,7 @@ import {
   moveCursorBy,
   leftClick,
   rightClick,
+  middleClick,
   doubleClick,
   scroll,
   keyPress,
@@ -76,6 +78,7 @@ function registerIpcHandlers(): void {
   );
   ipcMain.handle(IPC.INPUT_LEFT_CLICK, () => leftClick());
   ipcMain.handle(IPC.INPUT_RIGHT_CLICK, () => rightClick());
+  ipcMain.handle(IPC.INPUT_MIDDLE_CLICK, () => middleClick());
   ipcMain.handle(IPC.INPUT_DOUBLE_CLICK, () => doubleClick());
   ipcMain.handle(IPC.INPUT_SCROLL, (_e, dx: number, dy: number) =>
     scroll(dx, dy)
@@ -114,7 +117,27 @@ function broadcastSafety(): void {
         win.webContents.send(IPC.SAFETY_EMERGENCY_STOP);
       }
     }
+    // Hold off OS sleep / app-nap only while control is actually running, so a
+    // minimized-but-active session keeps driving the real cursor. Released as
+    // soon as control is paused, stopped, or disarmed.
+    updatePowerBlocker(state.armed && !state.paused && !state.stopped);
   });
+}
+
+// Keep the machine (and this process) awake while control is active so the
+// background detection loop isn't suspended when the window is minimized.
+let powerBlockerId: number | null = null;
+function updatePowerBlocker(active: boolean): void {
+  if (active) {
+    if (powerBlockerId === null || !powerSaveBlocker.isStarted(powerBlockerId)) {
+      powerBlockerId = powerSaveBlocker.start("prevent-app-suspension");
+    }
+  } else if (powerBlockerId !== null) {
+    if (powerSaveBlocker.isStarted(powerBlockerId)) {
+      powerSaveBlocker.stop(powerBlockerId);
+    }
+    powerBlockerId = null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -129,8 +152,19 @@ function createWindow(): void {
       preload: join(__dirname, "../preload/index.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      // Assistive control MUST keep running when the window is minimized or in
+      // the background — the whole point is to drive the real OS cursor while
+      // the user works in other apps. Chromium otherwise throttles/suspends
+      // timers, rAF, and the webcam pipeline for hidden windows, which froze
+      // the cursor the moment the app lost focus. Disable that throttling so
+      // the detection loop keeps ticking at full rate in the background.
+      backgroundThrottling: false,
     },
   });
+
+  // Also stop the renderer being told it's "hidden" from clamping timers to
+  // ~1fps, and keep the media/animation pipeline warm while backgrounded.
+  win.webContents.setBackgroundThrottling(false);
 
   // In development electron-vite serves the renderer from a dev server and
   // exposes its URL via ELECTRON_RENDERER_URL. In production we load the

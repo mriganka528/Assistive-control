@@ -108,6 +108,7 @@ export class ControlRuntime {
       sensitivity: s.cursorSensitivity ?? t.cursorSensitivity,
       speed: s.cursorSpeed ?? t.cursorSpeed,
       smoothing: t.cursorSmoothing,
+      acceleration: t.cursorAcceleration,
     };
   }
 
@@ -135,6 +136,7 @@ export class ControlRuntime {
     return {
       leftClick: this.mapping.leftClick,
       rightClick: this.mapping.rightClick,
+      middleClick: this.mapping.middleClick,
       confirm: this.mapping.confirm,
     };
   }
@@ -156,6 +158,8 @@ export class ControlRuntime {
       out.push({ role: "leftClick", binding: this.mapping.leftClick });
     if (this.mapping.rightClick)
       out.push({ role: "rightClick", binding: this.mapping.rightClick });
+    if (this.mapping.middleClick)
+      out.push({ role: "middleClick", binding: this.mapping.middleClick });
     if (this.mapping.confirm)
       out.push({ role: "confirm", binding: this.mapping.confirm });
     return out;
@@ -233,7 +237,7 @@ export class ControlRuntime {
     const canControl = state === "ACTIVE";
 
     if (canControl) {
-      this.cursor.update(signals);
+      this.cursor.update(signals, timestamp);
       this.scroll.update(signals, timestamp);
       this.discrete.update(signals, timestamp);
     } else {

@@ -189,6 +189,17 @@ export async function rightClick(): Promise<boolean> {
   });
 }
 
+export async function middleClick(): Promise<boolean> {
+  return guard("middleClick", async () => {
+    if (typeof nut.mouse.click === "function" && nut.Button) {
+      await nut.mouse.click(nut.Button.MIDDLE);
+    } else {
+      // Fallback: some builds expose a dedicated method.
+      await nut.mouse.middleClick?.();
+    }
+  });
+}
+
 export async function doubleClick(): Promise<boolean> {
   return guard("doubleClick", async () => {
     if (typeof nut.mouse.doubleClick === "function") {

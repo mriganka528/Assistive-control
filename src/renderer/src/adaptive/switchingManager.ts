@@ -60,6 +60,7 @@ function collectBindings(mapping: ControlMapping): RoleBinding[] {
   for (const b of mapping.scroll) out.push({ role: "scroll", binding: b });
   if (mapping.leftClick) out.push({ role: "leftClick", binding: mapping.leftClick });
   if (mapping.rightClick) out.push({ role: "rightClick", binding: mapping.rightClick });
+  if (mapping.middleClick) out.push({ role: "middleClick", binding: mapping.middleClick });
   if (mapping.confirm) out.push({ role: "confirm", binding: mapping.confirm });
   return out;
 }

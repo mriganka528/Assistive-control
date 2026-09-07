@@ -77,48 +77,117 @@ export function buildControlMapping(
 
   const used = new Set<string>();
 
-  // --- Discrete actions from non-directional movements ----------------------
-  const strongest = nonDirectional[0] ?? null;
-  const second = nonDirectional[1] ?? null;
-  const third = nonDirectional[2] ?? null;
+  const CURSOR_DIRS: MovementDirection[] = ["left", "right", "up", "down"];
+  const discreteRoles: DiscreteRoleName[] = [
+    "leftClick",
+    "rightClick",
+    "middleClick",
+    "confirm",
+  ];
+  const PATTERNS: GesturePattern[] = ["single", "double", "long"];
 
-  let leftClick: ControlBinding | null = null;
-  let rightClick: ControlBinding | null = null;
-  let confirm: ControlBinding | null = null;
+  // Pattern bookkeeping so one movement can drive several clicks (§8): single ->
+  // left, double -> right, long -> middle, etc.
+  const discrete: Record<DiscreteRoleName, ControlBinding | null> = {
+    leftClick: null,
+    rightClick: null,
+    middleClick: null,
+    confirm: null,
+  };
+  const patternsUsed = new Map<string, Set<GesturePattern>>();
+  const take = (name: string, p: GesturePattern) => {
+    let set = patternsUsed.get(name);
+    if (!set) {
+      set = new Set();
+      patternsUsed.set(name, set);
+    }
+    set.add(p);
+  };
+  const freePattern = (name: string): GesturePattern | null => {
+    const set = patternsUsed.get(name);
+    for (const p of PATTERNS) if (!set || !set.has(p)) return p;
+    return null;
+  };
 
-  if (strongest) {
-    leftClick = toBinding("leftClick", strongest, null, "single");
-    used.add(strongest.name);
-  }
-
-  if (second) {
-    rightClick = toBinding("rightClick", second, null, "single");
-    used.add(second.name);
-  } else if (strongest) {
-    // Reuse the strongest movement: a double activation = right click.
-    rightClick = toBinding("rightClick", strongest, null, "double");
-  }
-
-  if (third) {
-    confirm = toBinding("confirm", third, null, "single");
-    used.add(third.name);
-  } else if (strongest) {
-    // Reuse the strongest movement: a long activation = confirm.
-    confirm = toBinding("confirm", strongest, null, "long");
-  }
-
-  // --- Cursor gets horizontal directions first -----------------------------
   const cursor: ControlBinding[] = [];
-  for (const dir of ["left", "right"] as MovementDirection[]) {
+  const scroll: ControlBinding[] = [];
+
+  // ==========================================================================
+  // Allocation priority. The hard requirement is that EVERY function is usable:
+  // all four cursor directions, plus left/right/middle click. The tricky part
+  // is that a cursor direction needs its OWN movement (it can't share), whereas
+  // clicks are cheap — one movement covers up to three via single/double/long.
+  // So we:
+  //   1. secure ONE movement for clicks (kept aside; it will cover every click
+  //      via patterns), so clicks never starve the cursor of movements;
+  //   2. fill all four cursor directions — natural direction first, then any
+  //      leftover movement, so up/down are never left empty;
+  //   3. expand clicks onto their own distinct movements when spares exist
+  //      (nicer than triple-tapping one movement);
+  //   4. cover any still-empty click by pattern-sharing the reserved movement;
+  //   5. give scroll any vertical movement that remains.
+  // ==========================================================================
+
+  // Step 1 — reserve one movement for clicks (non-directional preferred, but
+  // fall back to the strongest movement of any kind so clicks are always
+  // reachable even for a user whose only movements are directional).
+  const clickReserve: MovementResult | undefined =
+    nonDirectional[0] ?? eligible[0] ?? undefined;
+  if (clickReserve) used.add(clickReserve.name);
+
+  // Step 2 — fill all four cursor directions.
+  const cursorPending: MovementDirection[] = [];
+  for (const dir of CURSOR_DIRS) {
     const m = takeBestWithDirection(directional, dir, used);
+    if (m) {
+      cursor.push(toBinding("cursor", m, dir));
+      used.add(m.name);
+    } else {
+      cursorPending.push(dir);
+    }
+  }
+  // Backfill empty directions from any leftover movement (strongest first).
+  for (const dir of cursorPending) {
+    const m = eligible.find((x) => !used.has(x.name));
     if (m) {
       cursor.push(toBinding("cursor", m, dir));
       used.add(m.name);
     }
   }
 
-  // --- Scroll gets vertical directions --------------------------------------
-  const scroll: ControlBinding[] = [];
+  // Step 3 — expand clicks onto their own distinct spare movements when any
+  // remain free (a dedicated single tap per click is nicer than double/long on
+  // one movement). `used` already covers the reserve + every cursor movement,
+  // so anything still free here is a genuine spare.
+  for (const role of discreteRoles) {
+    if (discrete[role]) continue;
+    const spare = eligible.find((m) => !used.has(m.name));
+    if (!spare) break;
+    discrete[role] = toBinding(role, spare, null, "single");
+    used.add(spare.name);
+    take(spare.name, "single");
+  }
+
+  // Step 4 — cover any remaining click by reusing a click movement's spare
+  // pattern (single -> double -> long). The reserved movement guarantees this
+  // always succeeds when the user has at least one movement at all.
+  const clickMovements = (): MovementResult[] => {
+    const names = new Set(patternsUsed.keys());
+    if (clickReserve) names.add(clickReserve.name);
+    return [...nonDirectional, ...directional].filter((m) => names.has(m.name));
+  };
+  for (const role of discreteRoles) {
+    if (discrete[role]) continue;
+    for (const m of clickMovements()) {
+      const p = freePattern(m.name);
+      if (!p) continue;
+      discrete[role] = toBinding(role, m, null, p);
+      take(m.name, p);
+      break;
+    }
+  }
+
+  // Step 5 — scroll gets whatever vertical directions remain unused.
   for (const dir of ["up", "down"] as MovementDirection[]) {
     const m = takeBestWithDirection(directional, dir, used);
     if (m) {
@@ -127,23 +196,13 @@ export function buildControlMapping(
     }
   }
 
-  // --- Fallback: if cursor got nothing, let it use vertical movements -------
-  if (cursor.length === 0) {
-    for (const dir of ["up", "down"] as MovementDirection[]) {
-      const m = takeBestWithDirection(directional, dir, used);
-      if (m) {
-        cursor.push(toBinding("cursor", m, dir));
-        used.add(m.name);
-      }
-    }
-  }
-
   return {
     cursor,
-    leftClick,
-    rightClick,
+    leftClick: discrete.leftClick,
+    rightClick: discrete.rightClick,
+    middleClick: discrete.middleClick,
     scroll,
-    confirm,
+    confirm: discrete.confirm,
   };
 }
 
@@ -169,13 +228,7 @@ export function replaceRoleBinding(
   targetMovementName: string,
   replacement: MovementResult
 ): ControlMapping {
-  const next: ControlMapping = {
-    cursor: [...mapping.cursor],
-    leftClick: mapping.leftClick,
-    rightClick: mapping.rightClick,
-    scroll: [...mapping.scroll],
-    confirm: mapping.confirm,
-  };
+  const next: ControlMapping = cloneMapping(mapping);
 
   switch (role) {
     case "cursor":
@@ -198,6 +251,9 @@ export function replaceRoleBinding(
     case "rightClick":
       next.rightClick = toBinding("rightClick", replacement, null);
       break;
+    case "middleClick":
+      next.middleClick = toBinding("middleClick", replacement, null);
+      break;
     case "confirm":
       next.confirm = toBinding("confirm", replacement, null);
       break;
@@ -212,6 +268,7 @@ export function assignedMovements(mapping: ControlMapping): Set<string> {
   for (const b of mapping.scroll) names.add(b.movementName);
   if (mapping.leftClick) names.add(mapping.leftClick.movementName);
   if (mapping.rightClick) names.add(mapping.rightClick.movementName);
+  if (mapping.middleClick) names.add(mapping.middleClick.movementName);
   if (mapping.confirm) names.add(mapping.confirm.movementName);
   return names;
 }
@@ -242,6 +299,10 @@ export function describeMapping(mapping: ControlMapping): string[] {
     const b = mapping.rightClick;
     lines.push(`${b.movementName}${patternSuffix(b.pattern)} -> Right Click`);
   }
+  if (mapping.middleClick) {
+    const b = mapping.middleClick;
+    lines.push(`${b.movementName}${patternSuffix(b.pattern)} -> Middle Click`);
+  }
   for (const b of mapping.scroll) {
     lines.push(`${b.movementName} -> Scroll ${b.direction ?? ""}`.trim());
   }
@@ -261,13 +322,7 @@ export function remapRole(
   role: ControlRole,
   replacement: MovementResult
 ): ControlMapping {
-  const next: ControlMapping = {
-    cursor: [...mapping.cursor],
-    leftClick: mapping.leftClick,
-    rightClick: mapping.rightClick,
-    scroll: [...mapping.scroll],
-    confirm: mapping.confirm,
-  };
+  const next: ControlMapping = cloneMapping(mapping);
 
   switch (role) {
     case "leftClick":
@@ -275,6 +330,9 @@ export function remapRole(
       break;
     case "rightClick":
       next.rightClick = toBinding("rightClick", replacement, null);
+      break;
+    case "middleClick":
+      next.middleClick = toBinding("middleClick", replacement, null);
       break;
     case "confirm":
       next.confirm = toBinding("confirm", replacement, null);
@@ -298,13 +356,18 @@ export function remapRole(
 // These return a NEW mapping so callers can persist it. They never mutate.
 // ---------------------------------------------------------------------------
 
-type DiscreteRoleName = "leftClick" | "rightClick" | "confirm";
+type DiscreteRoleName =
+  | "leftClick"
+  | "rightClick"
+  | "middleClick"
+  | "confirm";
 
 function cloneMapping(mapping: ControlMapping): ControlMapping {
   return {
     cursor: [...mapping.cursor],
     leftClick: mapping.leftClick,
     rightClick: mapping.rightClick,
+    middleClick: mapping.middleClick,
     scroll: [...mapping.scroll],
     confirm: mapping.confirm,
   };

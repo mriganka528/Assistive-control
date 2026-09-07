@@ -24,11 +24,12 @@ import type {
   GesturePattern,
 } from "../calibration/types";
 
-type DiscreteRoleName = "leftClick" | "rightClick" | "confirm";
+type DiscreteRoleName = "leftClick" | "rightClick" | "middleClick" | "confirm";
 
 const DISCRETE_LABELS: Record<DiscreteRoleName, string> = {
   leftClick: "Left click",
   rightClick: "Right click",
+  middleClick: "Middle click",
   confirm: "Confirm (Enter)",
 };
 
@@ -151,6 +152,7 @@ export default function ControlMappingEditor({
       <h3 style={groupStyle}>Clicks & confirm</h3>
       {discreteRow("leftClick")}
       {discreteRow("rightClick")}
+      {discreteRow("middleClick")}
       {discreteRow("confirm")}
     </div>
   );

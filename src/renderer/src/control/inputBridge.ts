@@ -18,6 +18,7 @@ const noopInput: InputPort = {
   moveCursorBy: async (): Promise<boolean> => false,
   leftClick: async (): Promise<boolean> => false,
   rightClick: async (): Promise<boolean> => false,
+  middleClick: async (): Promise<boolean> => false,
   doubleClick: async (): Promise<boolean> => false,
   scroll: async (): Promise<boolean> => false,
   keyPress: async (): Promise<boolean> => false,

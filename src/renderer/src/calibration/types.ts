@@ -112,6 +112,7 @@ export type ControlRole =
   | "cursor"
   | "leftClick"
   | "rightClick"
+  | "middleClick"
   | "scroll"
   | "confirm";
 
@@ -119,6 +120,7 @@ export const CONTROL_ROLES: ControlRole[] = [
   "cursor",
   "leftClick",
   "rightClick",
+  "middleClick",
   "scroll",
   "confirm",
 ];
@@ -148,6 +150,7 @@ export type ControlMapping = {
   cursor: ControlBinding[];
   leftClick: ControlBinding | null;
   rightClick: ControlBinding | null;
+  middleClick: ControlBinding | null;
   /** up / down bindings driving scroll. */
   scroll: ControlBinding[];
   confirm: ControlBinding | null;
@@ -163,6 +166,8 @@ export type Thresholds = {
   cursorSpeed: number;
   /** 0..1 exponential smoothing factor (higher = smoother/slower). */
   cursorSmoothing: number;
+  /** Response-curve exponent (>1 = fine near rest, full speed at high effort). */
+  cursorAcceleration: number;
   scrollDeadZone: number;
   scrollSpeed: number;
   scrollCooldownMs: number;
@@ -194,19 +199,23 @@ export type Settings = {
 
 /** Sensible starting values. Speeds/sensitivities are user-tunable. */
 export const DEFAULT_THRESHOLDS: Thresholds = {
-  cursorDeadZone: 0.12,
+  // A slightly larger dead zone + a precision response curve + stronger
+  // smoothing together remove the jitter/overshoot that made control feel
+  // imprecise, while the acceleration curve keeps full speed available.
+  cursorDeadZone: 0.15,
   cursorSensitivity: 1.0,
-  cursorSpeed: 14,
-  cursorSmoothing: 0.6,
-  scrollDeadZone: 0.15,
+  cursorSpeed: 16,
+  cursorSmoothing: 0.8,
+  cursorAcceleration: 1.6,
+  scrollDeadZone: 0.18,
   scrollSpeed: 3,
-  scrollCooldownMs: 90,
+  scrollCooldownMs: 110,
   clickDwellMs: 180,
   clickCooldownMs: 700,
   confirmDwellMs: 500,
   longActionMs: 900,
-  tapDwellMs: 90,
-  tapCooldownMs: 130,
+  tapDwellMs: 110,
+  tapCooldownMs: 150,
   doubleTapWindowMs: 450,
   faceLossGraceMs: 800,
   minTrackingConfidence: 0.4,

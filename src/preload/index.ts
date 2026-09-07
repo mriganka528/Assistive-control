@@ -30,6 +30,8 @@ const api: ElectronAPI = {
     leftClick: (): Promise<boolean> => ipcRenderer.invoke(IPC.INPUT_LEFT_CLICK),
     rightClick: (): Promise<boolean> =>
       ipcRenderer.invoke(IPC.INPUT_RIGHT_CLICK),
+    middleClick: (): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.INPUT_MIDDLE_CLICK),
     doubleClick: (): Promise<boolean> =>
       ipcRenderer.invoke(IPC.INPUT_DOUBLE_CLICK),
     scroll: (dx: number, dy: number): Promise<boolean> =>

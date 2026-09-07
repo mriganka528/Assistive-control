@@ -26,11 +26,16 @@ export type DiscreteTimings = {
   longActionMs: number;
 };
 
-export type DiscreteRole = "leftClick" | "rightClick" | "confirm";
+export type DiscreteRole =
+  | "leftClick"
+  | "rightClick"
+  | "middleClick"
+  | "confirm";
 
 export type DiscreteBindings = {
   leftClick: ControlBinding | null;
   rightClick: ControlBinding | null;
+  middleClick: ControlBinding | null;
   confirm: ControlBinding | null;
 };
 
@@ -47,7 +52,12 @@ type Group = {
 };
 
 /** Role priority when reporting/executing (left click is most common). */
-const ROLE_ORDER: DiscreteRole[] = ["leftClick", "rightClick", "confirm"];
+const ROLE_ORDER: DiscreteRole[] = [
+  "leftClick",
+  "rightClick",
+  "middleClick",
+  "confirm",
+];
 
 function patternOf(binding: ControlBinding): GesturePattern {
   return binding.pattern ?? "single";
@@ -155,6 +165,9 @@ export class DiscreteController {
         break;
       case "rightClick":
         void this.input.rightClick();
+        break;
+      case "middleClick":
+        void this.input.middleClick();
         break;
       case "confirm":
         void this.input.keyPress(this.confirmKey);

@@ -33,6 +33,8 @@ export class ScrollController {
   private cfg: ScrollConfig;
   private input: InputPort;
   private lastEmit = Number.NEGATIVE_INFINITY;
+  /** Smoothed vertical axis so a shaky signal scrolls at a steady pace. */
+  private smoothY = 0;
 
   constructor(
     bindings: ControlBinding[],
@@ -54,6 +56,7 @@ export class ScrollController {
 
   reset(): void {
     this.lastEmit = Number.NEGATIVE_INFINITY;
+    this.smoothY = 0;
   }
 
   private ticks(axis: number): number {
@@ -91,8 +94,13 @@ export class ScrollController {
       }
     }
 
-    const axisY = applyDeadzone(down - up, this.cfg.deadZone);
+    const rawY = applyDeadzone(down - up, this.cfg.deadZone);
     const axisX = applyDeadzone(right - left, this.cfg.deadZone);
+
+    // Light smoothing on the vertical axis to steady a noisy signal; snap back
+    // to zero promptly when the movement is released so scrolling stops cleanly.
+    this.smoothY = rawY === 0 ? 0 : 0.6 * this.smoothY + 0.4 * rawY;
+    const axisY = Math.abs(this.smoothY) < 0.02 ? 0 : this.smoothY;
 
     const ready = timestamp - this.lastEmit >= this.cfg.cooldownMs;
     if (!ready || (axisY === 0 && axisX === 0)) {

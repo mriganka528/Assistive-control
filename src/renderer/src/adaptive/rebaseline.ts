@@ -79,6 +79,9 @@ export function quickRebaseline(
     rightClick: profile.controls.rightClick
       ? adjustBinding(profile.controls.rightClick)
       : null,
+    middleClick: profile.controls.middleClick
+      ? adjustBinding(profile.controls.middleClick)
+      : null,
     confirm: profile.controls.confirm
       ? adjustBinding(profile.controls.confirm)
       : null,
