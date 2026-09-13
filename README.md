@@ -137,9 +137,9 @@ use the top-level portable or setup EXE when sharing a single file.
 ## Showcase website
 
 The standalone Next.js product site lives in
-[`showcase website/`](showcase%20website/README.md). It includes downloads,
+[`showcase-website/`](showcase-website/README.md). It includes downloads,
 application screenshots, and setup guidance. For Vercel, set the project's
-**Root Directory** to **`showcase website`** and use the **Next.js** preset.
+**Root Directory** to **`showcase-website`** and use the **Next.js** preset.
 
 ## Safety
 

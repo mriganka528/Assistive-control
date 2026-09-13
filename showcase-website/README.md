@@ -31,7 +31,7 @@ native input modules, or files from the parent application.
 
 1. Push this folder and its contents to your GitHub repository.
 2. Import the repository in Vercel, or open the existing project's settings.
-3. Set **Root Directory** to **`showcase website`** (including the space).
+3. Set **Root Directory** to **`showcase-website`** (with a hyphen).
 4. Select the **Next.js** framework preset and **Node.js 24.x**.
 5. Use **`npm ci`** for the install command and **`npm run build`** for the build
    command. Leave **Output Directory** at the Next.js default; do not set it to
@@ -41,6 +41,11 @@ native input modules, or files from the parent application.
 No database, API key, or required environment variable is needed. The root
 directory setting is important: the repository root is an Electron app with a
 different build command.
+
+Keep the folder name free of spaces. Vercel includes the folder path in generated
+serverless function names, which reject spaces. If your Vercel project still
+points to the former `showcase website` folder, update its **Root Directory** to
+**`showcase-website`** after pushing the rename, then deploy the new commit.
 
 Social sharing URLs use Vercel's production URL automatically. If you attach a
 custom domain, optionally set `NEXT_PUBLIC_SITE_URL` to its full HTTPS URL, such
