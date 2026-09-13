@@ -70,7 +70,10 @@ export default function Home({
 }) {
   return (
     <div style={{ maxWidth: "720px", margin: "0 auto", padding: "32px 24px" }}>
-      <h1 style={{ marginBottom: "4px" }}>Assistive Control</h1>
+      <h1 style={{ marginBottom: "4px", display: "flex", alignItems: "center", gap: "12px" }}>
+        <img src="./favicon.svg" alt="" width="44" height="44" draggable={false} />
+        Assistive Control
+      </h1>
       <p style={{ color: "#475569", marginTop: 0 }}>
         Control your computer using whatever movements work best for you. The app
         learns your strongest, most reliable movements and adapts as they change.

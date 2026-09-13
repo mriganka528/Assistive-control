@@ -18,7 +18,7 @@
 
 import { HandLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
-const MODEL_PATH = "/models/hand_landmarker.task";
+const MODEL_PATH = new URL("./models/hand_landmarker.task", document.baseURI).href;
 const MODEL_DOWNLOAD_URL =
   "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
 
@@ -76,7 +76,7 @@ export async function initializeHandLandmarker(): Promise<HandLandmarker | null>
 
   try {
     const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+      new URL("./wasm", document.baseURI).href
     );
 
     handLandmarker = await HandLandmarker.createFromOptions(vision, {

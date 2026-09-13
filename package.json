@@ -2,12 +2,16 @@
   "name": "assistive-control",
   "private": true,
   "version": "0.0.0",
+  "description": "On-device assistive mouse and keyboard control using face and hand movements",
   "main": "./out/main/index.js",
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.app.json --noEmit",
+    "predev": "node scripts/prepare-vision.mjs",
     "dev": "electron-vite dev",
+    "prebuild": "node scripts/prepare-vision.mjs --require-models",
     "build": "electron-vite build",
+    "dist:win": "npm run typecheck && npm run build && npx --yes electron-builder@26.0.12 --win --x64",
     "preview": "electron-vite preview"
   },
   "dependencies": {

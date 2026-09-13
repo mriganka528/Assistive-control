@@ -1,5 +1,31 @@
 # Assistive Control — Acceptance & Verification Report
 
+## Windows distribution verification — 2026-09-13
+
+Built `release/Assistive-Control-Portable-x64.exe` and
+`release/Assistive-Control-Setup-x64.exe` with Electron 43.4.1 and
+electron-builder 26.0.12. Both are unsigned Windows x64 distributions.
+
+- TypeScript checks, the production build, and ESLint for the changed
+  TypeScript files passed.
+- The packaged UI loaded from `app://local`. Both MediaPipe models initialized
+  with a synthetic camera while external HTTP/HTTPS requests were blocked;
+  no external requests were attempted.
+- The packaged native input module reported ready and read the screen size.
+  Dependency resolution was checked to prevent fallback to project dependencies.
+  Control remained disarmed throughout the test.
+- The portable EXE extracted and ran its own bundled Electron runtime, loaded
+  its native module, and included both model files and the local WASM runtime.
+- The application, portable EXE, and installer include the custom accessibility
+  and cursor icon. Windows icon extraction verified the embedded artwork after
+  rebuilding; the packaged window icon and SVG match their source assets.
+- The GUI smoke-test harness disabled Chromium's nested sandbox because the
+  outer Windows test sandbox prevented renderer startup. This test-only switch
+  is **not** included in the application or distribution configuration.
+
+A physical webcam, actual input injection, and installation on a separate PC
+still require live verification. The original development checklist follows.
+
 This report maps the project's requirements to their implementation and records
 how each was verified. It covers the product concept (movement-agnostic control),
 the verbatim spec constraints (§9/§24 real input, §13 no hard-coded eye control,
@@ -84,7 +110,7 @@ Status legend: **✓ Code-verified** (implementing code confirmed + type-checks)
 | No alternative → keep current (§18) | `switchingManager.ts` (`if (!alt) continue` + `minImprovement` gate) |
 | Editable control mapping (§22/§26) | `renderer/src/components/ControlMappingEditor.tsx`, `movementMapper.ts` (`setDiscreteRole`, `setDirectionalBinding`) |
 | Hand model path + graceful, non-silent fallback (§23) | `vision/handLandmarker.ts`, `ControlView.tsx`, `public/models/README.md` |
-| Local-only, no backend/auth/cloud/telemetry (§25) | `renderer/src/calibration/profile.ts`, IPC surface in `shared/ipc.ts`; no network calls except MediaPipe WASM load |
+| Local-only, no backend/auth/cloud/telemetry (§25) | `renderer/src/calibration/profile.ts`, IPC surface in `shared/ipc.ts`; MediaPipe models and WASM are bundled locally |
 | Mandatory safety model | `main/safety.ts`, `renderer/src/hooks/useSafety.ts`, `runtime/controlRuntime.ts` |
 
 ## Notes on the two dead-but-kept files

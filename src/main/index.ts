@@ -5,9 +5,12 @@ import {
   ipcMain,
   globalShortcut,
   powerSaveBlocker,
+  protocol,
+  net,
 } from "electron";
-import { join } from "node:path";
+import { join, resolve, relative, isAbsolute, sep } from "node:path";
 import { promises as fs } from "node:fs";
+import { pathToFileURL } from "node:url";
 
 import { IPC } from "../shared/ipc";
 import * as safety from "./safety";
@@ -26,6 +29,38 @@ import {
   isRealInput,
   inputDiagnostics,
 } from "./inputController";
+
+// A secure local origin lets MediaPipe fetch bundled models/WASM and keeps
+// camera APIs available without a web server or internet connection.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "app",
+    privileges: { standard: true, secure: true, supportFetchAPI: true },
+  },
+]);
+
+function registerLocalAssets(): void {
+  const rendererRoot = resolve(__dirname, "../renderer");
+  protocol.handle("app", (request) => {
+    const url = new URL(request.url);
+    if (url.host !== "local" || !["GET", "HEAD"].includes(request.method)) {
+      return new Response("Not found", { status: 404 });
+    }
+
+    let pathname: string;
+    try {
+      pathname = decodeURIComponent(url.pathname);
+    } catch {
+      return new Response("Bad request", { status: 400 });
+    }
+    const asset = resolve(rendererRoot, `.${pathname === "/" ? "/index.html" : pathname}`);
+    const relativePath = relative(rendererRoot, asset);
+    if (relativePath === ".." || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
+      return new Response("Not found", { status: 404 });
+    }
+    return net.fetch(pathToFileURL(asset).href, { method: request.method });
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Profile storage (local JSON in the OS userData directory — never uploaded)
@@ -148,6 +183,7 @@ function createWindow(): void {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: join(__dirname, "../../build/icon.png"),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       contextIsolation: true,
@@ -174,11 +210,15 @@ function createWindow(): void {
     win.loadURL(rendererUrl);
     win.webContents.openDevTools();
   } else {
-    win.loadFile(join(__dirname, "../renderer/index.html"));
+    win.loadURL("app://local/index.html");
   }
 }
 
 app.whenReady().then(() => {
+  if (process.platform === "win32") {
+    app.setAppUserModelId("org.assistivecontrol.desktop");
+  }
+  registerLocalAssets();
   // Allow the renderer to use the webcam (video only).
   session.defaultSession.setPermissionCheckHandler(
     (_webContents, permission, _requestingOrigin, details) => {

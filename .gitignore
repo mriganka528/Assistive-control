@@ -11,11 +11,14 @@ node_modules
 dist
 dist-ssr
 out
+release
+.cache
 *.local
 
 # MediaPipe model weights — large binaries, downloaded per
 # src/renderer/public/models/README.md (kept out of git; use LFS if you must track them)
 src/renderer/public/models/*.task
+src/renderer/public/wasm/
 
 # Editor directories and files
 .vscode/*

@@ -44,9 +44,9 @@ mode (real vs simulation) is shown in-app via the Input Mode banner.
 ## Privacy
 
 Camera frames, derived signals, calibration data, and the saved profile are all
-processed and stored **only on this device**. There is no network activity for
-inference; the sole remote fetch is the MediaPipe WASM runtime from a CDN at
-startup. No accounts, no cloud, no analytics.
+processed and stored **only on this device**. Both tracking models and the
+MediaPipe WASM runtime are bundled locally, so tracking also works offline.
+No accounts, no cloud, no analytics.
 
 ## Tech stack
 
@@ -102,10 +102,49 @@ npm run build      # production build (electron-vite)
 See [`ACCEPTANCE.md`](ACCEPTANCE.md) for the full acceptance checklist and how
 each requirement is satisfied.
 
+## Build a standalone Windows EXE
+
+On a Windows x64 build machine with Node.js installed:
+
+```bash
+npm install
+npm run dist:win
+```
+
+The build checks the types, copies the matching MediaPipe WASM runtime, verifies
+both model files, and packages the application using electron-builder 26.0.12.
+The packaging tool is downloaded by `npx` on first use. The model files must be
+downloaded before building, as described in the models README above.
+
+Copy either of these files from `release/` to the other PC:
+
+- **`Assistive-Control-Portable-x64.exe`**: double-click to run without installing.
+  At startup it extracts its bundled files to a temporary directory.
+- **`Assistive-Control-Setup-x64.exe`**: install for the current Windows user,
+  with desktop and Start menu shortcuts.
+
+The receiving PC needs **Windows 10/11, 64-bit Intel or AMD**, a working webcam,
+and permission for desktop apps to access the camera. It does **not** need Node.js,
+npm, the source project, separately installed model files, or an internet
+connection. Electron, the native input module and its Visual C++ DLLs, and both
+tracking models are included. Profiles are stored separately for each Windows
+user under `%APPDATA%/assistive-control`.
+
+These are unsigned builds; Windows may show an unknown-publisher or SmartScreen
+prompt. The EXE inside `release/win-unpacked/` requires that entire folder;
+use the top-level portable or setup EXE when sharing a single file.
+
+## Showcase website
+
+The standalone Next.js product site lives in
+[`showcase website/`](showcase%20website/README.md). It includes downloads,
+application screenshots, and setup guidance. For Vercel, set the project's
+**Root Directory** to **`showcase website`** and use the **Next.js** preset.
+
 ## Safety
 
-Live control is gated behind an explicit **Arm** action and offers
-**pause / resume / disarm / emergency-stop** at all times, plus a global
-emergency-stop hotkey (`Ctrl+Shift+X`) that works even when the window isn't
-focused. Control automatically freezes when the face is lost or tracking
-confidence drops, and leaving the control screen always disarms.
+Live Control arms automatically when its camera is ready. Learn **Pause** and
+**Emergency stop** before starting a session. The global emergency-stop hotkey
+(`Ctrl+Shift+X`) works even when the window isn't focused. Control automatically
+freezes when the face is lost or tracking confidence drops, and leaving the
+control screen always disarms.

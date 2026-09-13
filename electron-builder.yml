@@ -1,0 +1,40 @@
+appId: org.assistivecontrol.desktop
+productName: Assistive Control
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+  - build/icon.png
+  - "!out/renderer/models/README.md"
+  - "!node_modules/@nut-tree-fork/libnut-darwin/**/*"
+  - "!node_modules/@nut-tree-fork/libnut-linux/**/*"
+asar: true
+asarUnpack:
+  - "**/*.node"
+  - "**/*.dll"
+  - "**/clipboardy/fallbacks/**/*"
+# Use the Electron runtime installed with this project. libnut ships N-API
+# binaries and its Visual C++ DLLs, so no compiler/rebuild is needed.
+electronDist: node_modules/electron/dist
+npmRebuild: false
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  artifactName: Assistive-Control-Setup-x64.exe
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+portable:
+  artifactName: Assistive-Control-Portable-x64.exe
+  requestExecutionLevel: user

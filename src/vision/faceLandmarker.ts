@@ -11,12 +11,12 @@ export async function initializeFaceLandmarker() {
   }
 
   const vision = await FilesetResolver.forVisionTasks(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+    new URL("./wasm", document.baseURI).href
   );
 
   faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
     baseOptions: {
-      modelAssetPath: "/models/face_landmarker.task",
+      modelAssetPath: new URL("./models/face_landmarker.task", document.baseURI).href,
     },
 
     runningMode: "VIDEO",

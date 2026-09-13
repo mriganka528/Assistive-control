@@ -10,8 +10,10 @@ here**: `src/renderer/public/models/`.
 | `hand_landmarker.task` | Hand/finger landmarks. Adds optional hand movements as extra controls. | No (app runs face-only without it) | ~7.5 MB |
 
 Everything runs locally — these files are never uploaded and the app makes no
-network calls for inference. The only network access is the one-time WASM
-runtime fetched from the jsDelivr CDN.
+network calls for inference. `npm run dev` and `npm run build` copy the matching
+WASM runtime from the installed MediaPipe package into `public/wasm/`. Packaged
+apps include that runtime and both models, and load them from a secure local
+`app://` origin without an internet connection.
 
 ## Downloading the models
 
@@ -49,6 +51,9 @@ Run those from inside `src/renderer/public/models/`, then restart the app.
   enable hand movements as additional controls.
 
 ## Note for contributors
+
+Production builds require both model files so the distributed app includes
+hand tracking. Development still supports face-only use without the hand model.
 
 These `.task` files are binary and large. If you use Git LFS, make sure they are
 pulled (`git lfs pull`) — a repository that stores only the LFS pointer will
